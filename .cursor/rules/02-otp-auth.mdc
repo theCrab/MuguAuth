@@ -1,0 +1,12 @@
+---
+description: Strict rules governing OTP generation, verification, and database checks.
+globs: src/services/auth.service.ts, src/controllers/auth.controller.ts, src/models/user.model.ts
+---
+# OTP Authentication Workflow Rules
+
+## Security Constraints
+1. **Dynamic Identifier:** Accepts *either* valid email format or phone number. Check input regex dynamically.
+2. **OTP Generation:** Must generate a cryptographically secure 6-digit string token, not a simple random floating number.
+3. **Expiration:** OTPs must have an explicit expiration time window (strictly 5 minutes).
+4. **JWT Lifespan:** Access tokens must expire in 15 minutes. Refresh tokens must live for 7 days.
+5. **Database State:** The table column `otp_verified` must clear out or block the OTP code immediately upon successful matching to mitigate replay attacks.
