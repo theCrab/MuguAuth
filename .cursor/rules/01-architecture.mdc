@@ -1,0 +1,14 @@
+---
+description: Applies to all TypeScript backend files to enforce API standards and structural health.
+globs: src/**/*.ts
+---
+# Backend Architecture Rules
+
+## Core Principles
+- **Separation of Concerns:** Never write raw SQL inside controllers. Routes -> Controllers -> Services -> Models.
+- **Unified API Response:** Every success or error must return a standard response shape:
+  ```json
+  { "success": true, "data": { ... } }
+  { "success": false, "error": { "message": "Reason for failure", "code": "ERROR_CODE" } }
+  ```
+- **Error Handling:** Avoid using raw `try/catch` in controllers. Bubble custom operational errors up to the global error middleware using `next(error)`.
