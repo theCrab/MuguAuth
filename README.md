@@ -7,7 +7,7 @@
 ├── src/
 │   ├── config/
 │   │   ├── database.ts             # pg pool connection configuration
-│   │   └── mailer.ts               # SendGrid configuration boilerplate
+│   │   └── mailer.ts               # SendGrid and Twilio configuration boilerplate
 │   ├── controllers/
 │   │   └── auth.controller.ts      # HTTP layer: handle request/response
 │   ├── middlewares/
@@ -20,6 +20,7 @@
 │   ├── services/
 │   │   ├── auth.service.ts         # Core business logic: JWT & OTP verification
 │   │   └── email.service.ts        # SendGrid abstraction layer
+│   │   └── sms.service.ts          # Twilio abstraction layer
 │   ├── types/
 │   │   └── express.d.ts            # Extension for Request namespaces
 │   ├── app.ts                      # Express app configuration
