@@ -1,12 +1,65 @@
 ---
-description: Strict rules governing OTP generation, verification, and database checks.
-globs: src/services/auth.service.ts, src/controllers/auth.controller.ts, src/models/user.model.ts
+description: Strict rules for passwordless OTP signup/signin flows, identity normalization, and security.
+alwaysApply: true
 ---
-# OTP Authentication Workflow Rules
+# MuguAuth OTP & Identity Security Rules
 
-## Security Constraints
-1. **Dynamic Identifier:** Accepts *either* valid email format or phone number. Check input regex dynamically.
-2. **OTP Generation:** Must generate a cryptographically secure 6-digit string token, not a simple random floating number.
-3. **Expiration:** OTPs must have an explicit expiration time window (strictly 5 minutes).
-4. **JWT Lifespan:** Access tokens must expire in 15 minutes. Refresh tokens must live for 7 days.
-5. **Database State:** The table column `otp_verified` must clear out or block the OTP code immediately upon successful matching to mitigate replay attacks.
+## Auth model
+- This project is passwordless-only.
+- Signup must accept both `email` and `phone` as required inputs.
+- Signin must accept either `email` or `phone` as a login identifier.
+- There is no password-based login flow in this project.
+
+## Identity normalization and validation
+- Normalize email before storage and checks: trim whitespace and lowercase it.
+- Normalize phone before storage and checks: trim whitespace and convert to the canonical E.164 format.
+- Reject invalid email and invalid phone payloads before persisting or sending OTPs.
+- Email and phone are each unique across users.
+- The pair `(email, phone)` is also unique as a family-of-account identity.
+- There must never be two users with the same email or the same phone, and no user may share the exact same email+phone pair with another user.
+
+## Signup flow requirements
+- Signup is stored in Redis as an unconfirmed signup session.
+- A signup must not create a Postgres user until both email and phone have been verified.
+- Redis signup state must expire after 15 minutes.
+- On successful verification of both channels, create the user record in Postgres.
+- On verification failure, timeout, or cancellation, delete the Redis signup state.
+- If either the email or phone already exists in the user table, reject the signup using the same generic family-of-account verification response.
+- Do not reveal whether the email or phone already exists in the system.
+
+## Signin flow requirements
+- Signin accepts either email or phone.
+- If a user exists in Postgres and is active, send a one-time code to the channel associated with that identity.
+- If the user does not exist or is not active, fail quietly without revealing whether the identifier exists.
+- Never expose account existence differences on signin.
+
+## OTP rules
+- Generate a cryptographically secure numeric OTP with a fixed length.
+- Prefer a 6-digit code unless intentionally adjusted and approved.
+- OTPs must have a strict expiration window, such as 5 minutes.
+- OTPs must be invalidated on use and on resend.
+- Prevent brute-force abuse with rate-limiting, cooldown periods, and attempt tracking.
+- Never log OTP values, refresh tokens, or JWTs in plaintext.
+- Store OTPs and signup state in Redis, not in Postgres.
+
+## Redis and session handling
+- Use Redis to hold signup state, OTP generation, and verification state.
+- Redis keys must be explicit and namespaced by purpose.
+- Clear Redis state on successful verification or expiry.
+- Guard against replay and duplicate verification attempts.
+
+## JWT and refresh-token rules
+- Use refresh tokens as part of the auth model.
+- Keep JWT generation and verification logic in dedicated auth services.
+- JWT signing keys must be published via `.well-known/jwtks.pem` for host-app offline verification.
+- Keep claims minimal and explicit.
+- Refresh tokens must be rotated and tracked server-side.
+- Do not treat JWTs as a substitute for identity verification or account state checks.
+
+## Security requirements
+- Do not expose stack traces, internal database details, or secret values to clients.
+- Do not allow OTP or signup verification to bypass Redis state.
+- Do not create a user before both phone and email verification have succeeded.
+- Do not allow silent bypass of uniqueness constraints.
+- Do not weaken validation or normalization for convenience.
+- Do not add password-based authentication to this project.
